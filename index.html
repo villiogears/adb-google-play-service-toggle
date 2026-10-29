@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GMS Toggle - Google Play開発者サービス 有効/無効化</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1rem;
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      font-size: 0.95rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .status-dot.connected {
+      background: var(--success);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+    }
+
+    .status-dot.error {
+      background: var(--danger);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    button {
+      appearance: none;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, opacity 0.15s;
+      font-family: inherit;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: var(--danger-hover);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #0f1419;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: #16a34a;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(255,255,255,0.05);
+    }
+
+    .log {
+      background: #0a0e14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+      font-size: 0.8rem;
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #a8b5c9;
+      min-height: 120px;
+    }
+
+    .log .info { color: #60a5fa; }
+    .log .ok { color: #4ade80; }
+    .log .err { color: #f87171; }
+    .log .warn { color: #fbbf24; }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 8px;
+      padding: 1rem 1.15rem;
+      font-size: 0.875rem;
+      color: #fcd34d;
+      margin-bottom: 1.25rem;
+    }
+
+    .warning-box strong {
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    .steps {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    .steps ol {
+      margin-left: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .steps li {
+      margin-bottom: 0.35rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>GMS Toggle</h1>
+      <p>WebUSB + WebADB で Google Play 開発者サービスを有効/無効化</p>
+    </header>
+
+    <div class="warning-box">
+      <strong>⚠ 重要な注意</strong>
+      Google Play 開発者サービス (com.google.android.gms) を無効化すると、多くのGoogleアプリや一部のシステム機能が動作しなくなります。
+      再有効化しても完全に元に戻らない場合があります。自己責任で使用してください。
+      また、この操作には USBデバッグ が有効である必要があります。
+    </div>
+
+    <div class="card">
+      <h2>接続状態</h2>
+      <div class="status" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">未接続</span>
+      </div>
+      <div class="btn-row" style="margin-top: 1rem;">
+        <button class="btn-primary" id="btnConnect">デバイスに接続</button>
+        <button class="btn-secondary" id="btnDisconnect" disabled>切断</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>GMS 操作</h2>
+      <div class="btn-row">
+        <button class="btn-danger" id="btnDisable" disabled>無効化 (disable-user)</button>
+        <button class="btn-success" id="btnEnable" disabled>有効化 (enable)</button>
+        <button class="btn-secondary" id="btnCheck" disabled>状態確認</button>
+      </div>
+      <p style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--muted);">
+        実行コマンド例:<br>
+        <code>pm disable-user --user 0 com.google.android.gms</code><br>
+        <code>pm enable --user 0 com.google.android.gms</code>
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>ログ</h2>
+      <div class="log" id="log"></div>
+      <div class="btn-row" style="margin-top: 0.75rem;">
+        <button class="btn-secondary" id="btnClearLog">ログをクリア</button>
+      </div>
+    </div>
+
+    <div class="card steps">
+      <h2>使い方</h2>
+      <ol>
+        <li>Android端末で「開発者向けオプション」→「USBデバッグ」をONにする</li>
+        <li>USBケーブルでPCに接続し、ファイル転送モードにする</li>
+        <li>Chrome / Edge / Brave などの Chromium 系ブラウザでこのページを開く</li>
+        <li>「デバイスに接続」を押し、一覧から端末を選択して許可する</li>
+        <li>端末側で「USBデバッグを許可しますか？」が出たら許可する</li>
+        <li>「無効化」または「有効化」ボタンで操作する</li>
+      </ol>
+    </div>
+
+    <footer>
+      Powered by <a href="https://tangoadb.dev/" target="_blank" rel="noopener">Tango (ya-webadb)</a> ·
+      ローカル完結・サーバーには一切データは送信されません
+    </footer>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "@yume-chan/adb": "https://esm.sh/@yume-chan/adb@2.6.4",
+      "@yume-chan/stream-extra": "https://esm.sh/@yume-chan/stream-extra@2.6.4",
+      "@yume-chan/adb-daemon-webusb": "https://esm.sh/@yume-chan/adb-daemon-webusb@2.3.2",
+      "@yume-chan/adb-credential-web": "https://esm.sh/@yume-chan/adb-credential-web@2.1.0"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import { Adb, AdbDaemonTransport } from "@yume-chan/adb";
+    import { AdbDaemonWebUsbDeviceManager } from "@yume-chan/adb-daemon-webusb";
+    import AdbWebCredentialStore from "@yume-chan/adb-credential-web";
+
+    const PACKAGE = "com.google.android.gms";
+
+    const el = {
+      statusDot: document.getElementById("statusDot"),
+      statusText: document.getElementById("statusText"),
+      btnConnect: document.getElementById("btnConnect"),
+      btnDisconnect: document.getElementById("btnDisconnect"),
+      btnDisable: document.getElementById("btnDisable"),
+      btnEnable: document.getElementById("btnEnable"),
+      btnCheck: document.getElementById("btnCheck"),
+      btnClearLog: document.getElementById("btnClearLog"),
+      log: document.getElementById("log"),
+    };
+
+    let adb = null;
+    let transport = null;
+    const credentialStore = new AdbWebCredentialStore("GMS-Toggle");
+
+    function log(msg, type = "") {
+      const span = document.createElement("span");
+      if (type) span.className = type;
+      const time = new Date().toLocaleTimeString("ja-JP", { hour12: false });
+      span.textContent = `[${time}] ${msg}\n`;
+      el.log.appendChild(span);
+      el.log.scrollTop = el.log.scrollHeight;
+    }
+
+    function setConnected(connected, label = "") {
+      el.statusDot.className = "status-dot" + (connected ? " connected" : "");
+      el.statusText.textContent = connected ? (label || "接続済み") : "未接続";
+      el.btnConnect.disabled = connected;
+      el.btnDisconnect.disabled = !connected;
+      el.btnDisable.disabled = !connected;
+      el.btnEnable.disabled = !connected;
+      el.btnCheck.disabled = !connected;
+    }
+
+    async function runShell(command) {
+      if (!adb) throw new Error("デバイスが接続されていません");
+
+      // noneProtocol は全Androidで動作。spawnWaitText があればそれを使う
+      const spawner = adb.subprocess.noneProtocol;
+      if (typeof spawner.spawnWaitText === "function") {
+        return await spawner.spawnWaitText(command);
+      }
+
+      // フォールバック: spawn + 手動で出力を読む
+      const process = await spawner.spawn(command);
+      let text = "";
+      const decoder = new TextDecoder();
+      for await (const chunk of process.output) {
+        text += decoder.decode(chunk, { stream: true });
+      }
+      text += decoder.decode();
+      await process.exited;
+      return text;
+    }
+
+    el.btnConnect.addEventListener("click", async () => {
+      try {
+        if (!AdbDaemonWebUsbDeviceManager.BROWSER) {
+          log("このブラウザは WebUSB に対応していません。Chrome / Edge / Brave を使ってください。", "err");
+          return;
+        }
+
+        log("デバイス選択ダイアログを表示しています…", "info");
+        const device = await AdbDaemonWebUsbDeviceManager.BROWSER.requestDevice();
+        if (!device) {
+          log("デバイスが選択されませんでした。", "warn");
+          return;
+        }
+
+        log(`デバイス選択: ${device.serial || "(シリアル不明)"}`, "info");
+        log("USBインターフェースを確保しています…", "info");
+
+        let connection;
+        try {
+          connection = await device.connect();
+        } catch (e) {
+          if (e.name === "DeviceBusyError" || (e.message && e.message.includes("busy"))) {
+            log("デバイスが他のプログラム（adbなど）に占有されています。adb kill-server してから再試行してください。", "err");
+            return;
+          }
+          throw e;
+        }
+
+        log("認証中… 端末側で「USBデバッグを許可」をタップしてください。", "info");
+
+        transport = await AdbDaemonTransport.authenticate({
+          serial: device.serial,
+          connection,
+          credentialStore,
+        });
+
+        adb = new Adb(transport);
+
+        const model = await runShell("getprop ro.product.model").catch(() => "");
+        const name = (model || device.serial || "Android").trim();
+        setConnected(true, name);
+        log(`接続成功: ${name}`, "ok");
+      } catch (e) {
+        console.error(e);
+        log(`接続エラー: ${e.message || e}`, "err");
+        setConnected(false);
+        adb = null;
+        transport = null;
+      }
+    });
+
+    el.btnDisconnect.addEventListener("click", async () => {
+      try {
+        if (transport && typeof transport.close === "function") {
+          await transport.close();
+        }
+      } catch (_) {}
+      adb = null;
+      transport = null;
+      setConnected(false);
+      log("切断しました。", "info");
+    });
+
+    el.btnDisable.addEventListener("click", async () => {
+      if (!confirm(`本当に ${PACKAGE} を無効化しますか？\n多くのアプリが動かなくなる可能性があります。`)) return;
+      el.btnDisable.disabled = true;
+      el.btnEnable.disabled = true;
+      try {
+        const cmd = `pm disable-user --user 0 ${PACKAGE}`;
+        log(`実行: ${cmd}`, "info");
+        const out = await runShell(cmd);
+        log(out.trim() || "(出力なし)", out.toLowerCase().includes("error") ? "err" : "ok");
+        log("無効化コマンドを送信しました。状態確認で結果を確認してください。", "ok");
+      } catch (e) {
+        log(`エラー: ${e.message || e}`, "err");
+      } finally {
+        el.btnDisable.disabled = false;
+        el.btnEnable.disabled = false;
+      }
+    });
+
+    el.btnEnable.addEventListener("click", async () => {
+      el.btnDisable.disabled = true;
+      el.btnEnable.disabled = true;
+      try {
+        const cmd = `pm enable --user 0 ${PACKAGE}`;
+        log(`実行: ${cmd}`, "info");
+        const out = await runShell(cmd);
+        log(out.trim() || "(出力なし)", out.toLowerCase().includes("error") ? "err" : "ok");
+        log("有効化コマンドを送信しました。", "ok");
+      } catch (e) {
+        log(`エラー: ${e.message || e}`, "err");
+      } finally {
+        el.btnDisable.disabled = false;
+        el.btnEnable.disabled = false;
+      }
+    });
+
+    el.btnCheck.addEventListener("click", async () => {
+      try {
+        log("パッケージ状態を確認中…", "info");
+        // enabled / disabled の状態を取得
+        const out = await runShell(`pm list packages -d ${PACKAGE}; pm list packages -e ${PACKAGE}; dumpsys package ${PACKAGE} | grep -E "enabled=|User 0:" | head -20`);
+        log(out.trim() || "(出力なし)", "info");
+      } catch (e) {
+        log(`エラー: ${e.message || e}`, "err");
+      }
+    });
+
+    el.btnClearLog.addEventListener("click", () => {
+      el.log.textContent = "";
+    });
+
+    // 初期チェック
+    if (!window.isSecureContext) {
+      log("このページは HTTPS または localhost で開く必要があります（Secure Context が必要です）。", "err");
+    } else if (!navigator.usb) {
+      log("WebUSB が利用できません。Chromium 系ブラウザを使用してください。", "err");
+    } else {
+      log("準備完了。デバイスに接続してください。", "info");
+    }
+  </script>
+</body>
+</html>
