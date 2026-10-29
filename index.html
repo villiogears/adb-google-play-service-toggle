@@ -349,13 +349,11 @@
     async function runShell(command) {
       if (!adb) throw new Error("デバイスが接続されていません");
 
-      // noneProtocol は全Androidで動作。spawnWaitText があればそれを使う
       const spawner = adb.subprocess.noneProtocol;
       if (typeof spawner.spawnWaitText === "function") {
         return await spawner.spawnWaitText(command);
       }
 
-      // フォールバック: spawn + 手動で出力を読む
       const process = await spawner.spawn(command);
       let text = "";
       const decoder = new TextDecoder();
@@ -365,6 +363,69 @@
       text += decoder.decode();
       await process.exited;
       return text;
+    }
+
+    /** 選択済みの WebUSB デバイスで ADB 接続を確立する */
+    async function connectWithDevice(device, { silent = false } = {}) {
+      if (!silent) {
+        log(`デバイス選択: ${device.serial || "(シリアル不明)"}`, "info");
+        log("USBインターフェースを確保しています…", "info");
+      }
+
+      let connection;
+      try {
+        connection = await device.connect();
+      } catch (e) {
+        if (e.name === "DeviceBusyError" || (e.message && e.message.includes("busy"))) {
+          log("デバイスが他のプログラム（adbなど）に占有されています。adb kill-server してから再試行してください。", "err");
+          return false;
+        }
+        throw e;
+      }
+
+      if (!silent) {
+        log("認証中… 端末側で「USBデバッグを許可」をタップしてください（既に許可済みならそのまま進みます）。", "info");
+      } else {
+        log("既に許可済みのデバイスを検出。自動接続しています…", "info");
+      }
+
+      transport = await AdbDaemonTransport.authenticate({
+        serial: device.serial,
+        connection,
+        credentialStore,
+      });
+
+      adb = new Adb(transport);
+
+      const model = await runShell("getprop ro.product.model").catch(() => "");
+      const name = (model || device.serial || "Android").trim();
+      setConnected(true, name);
+      log(`接続成功: ${name}`, "ok");
+      return true;
+    }
+
+    /** ページ読み込み時: 既に許可済みの端末があれば自動接続 */
+    async function tryAutoConnect() {
+      const Manager = AdbDaemonWebUsbDeviceManager.BROWSER;
+      if (!Manager) return;
+
+      try {
+        const devices = await Manager.getDevices();
+        if (!devices || devices.length === 0) {
+          log("許可済みデバイスは見つかりませんでした。「デバイスに接続」を押してください。", "info");
+          return;
+        }
+
+        const device = devices[0];
+        log(`許可済みデバイスを検出: ${device.serial || "(シリアル不明)"}`, "info");
+        await connectWithDevice(device, { silent: true });
+      } catch (e) {
+        console.error(e);
+        log(`自動接続に失敗: ${e.message || e}。「デバイスに接続」から手動で接続してください。`, "warn");
+        adb = null;
+        transport = null;
+        setConnected(false);
+      }
     }
 
     el.btnConnect.addEventListener("click", async () => {
@@ -381,34 +442,7 @@
           return;
         }
 
-        log(`デバイス選択: ${device.serial || "(シリアル不明)"}`, "info");
-        log("USBインターフェースを確保しています…", "info");
-
-        let connection;
-        try {
-          connection = await device.connect();
-        } catch (e) {
-          if (e.name === "DeviceBusyError" || (e.message && e.message.includes("busy"))) {
-            log("デバイスが他のプログラム（adbなど）に占有されています。adb kill-server してから再試行してください。", "err");
-            return;
-          }
-          throw e;
-        }
-
-        log("認証中… 端末側で「USBデバッグを許可」をタップしてください。", "info");
-
-        transport = await AdbDaemonTransport.authenticate({
-          serial: device.serial,
-          connection,
-          credentialStore,
-        });
-
-        adb = new Adb(transport);
-
-        const model = await runShell("getprop ro.product.model").catch(() => "");
-        const name = (model || device.serial || "Android").trim();
-        setConnected(true, name);
-        log(`接続成功: ${name}`, "ok");
+        await connectWithDevice(device);
       } catch (e) {
         console.error(e);
         log(`接続エラー: ${e.message || e}`, "err");
@@ -468,7 +502,6 @@
     el.btnCheck.addEventListener("click", async () => {
       try {
         log("パッケージ状態を確認中…", "info");
-        // enabled / disabled の状態を取得
         const out = await runShell(`pm list packages -d ${PACKAGE}; pm list packages -e ${PACKAGE}; dumpsys package ${PACKAGE} | grep -E "enabled=|User 0:" | head -20`);
         log(out.trim() || "(出力なし)", "info");
       } catch (e) {
@@ -480,13 +513,14 @@
       el.log.textContent = "";
     });
 
-    // 初期チェック
+    // 初期チェック + 許可済みデバイスの自動接続
     if (!window.isSecureContext) {
       log("このページは HTTPS または localhost で開く必要があります（Secure Context が必要です）。", "err");
     } else if (!navigator.usb) {
       log("WebUSB が利用できません。Chromium 系ブラウザを使用してください。", "err");
     } else {
-      log("準備完了。デバイスに接続してください。", "info");
+      log("準備完了。許可済みデバイスを確認しています…", "info");
+      tryAutoConnect();
     }
   </script>
 </body>
